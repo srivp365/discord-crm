@@ -25,13 +25,19 @@ async def add_person(
     name: discord.Option(discord.SlashCommandOptionType.string),
     common_location: discord.Option(discord.SlashCommandOptionType.string),
     note: discord.Option(discord.SlashCommandOptionType.string, required=False),
+    birthday: discord.Option(discord.SlashCommandOptionType.string, required=False),
 ):
     forum_channel = bot.get_channel(1525865745504931940)
-    if note:
-        content = f"Meeting Spot: {common_location} \n Note: {note}"
+    if note and birthday:
+        content = (
+            f"First Contact: {common_location} \n Note: {note} \n Birthday: {birthday}"
+        )
+    elif note:
+        content = content = f"First Contact: {common_location} \n Note: {note}"
+    elif birthday:
+        content = f"First Contact: {common_location} \n Birthday: {birthday}"
     else:
-        content = f"Meeting Spot: {common_location}"
-
+        content = f"First Contact: {common_location}"
     thread = await forum_channel.create_thread(
         name=name,
         content=content,
