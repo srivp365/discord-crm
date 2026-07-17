@@ -5,7 +5,7 @@ description = "A contact/relationships management system, built on top of Discor
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "dotenv>=0.9.9",
     "libsql>=0.1.11",
     "py-cord>=2.8.0",
+    "python-dotenv>=1.2.2",
 ]
