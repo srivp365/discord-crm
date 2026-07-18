@@ -55,7 +55,7 @@ async def daily_debrief_force(ctx: discord.ApplicationContext):
 
 @bot.slash_command(name="hello", description="Say hello to the bot")
 async def hello(ctx: discord.ApplicationContext):
-    await ctx.respond(f"Hey {ctx.author.metion}!, you called?")
+    await ctx.respond(f"Hey {ctx.author.mention}!, you called?")
 
 @bot.slash_command(name="birthday_list", description="Grab a list of birthdays today")
 async def list_birthdays(ctx: discord.ApplicationContext):
