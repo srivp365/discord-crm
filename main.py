@@ -76,7 +76,7 @@ async def list_birthdays(ctx: discord.ApplicationContext):
 # A command to add people
 @bot.slash_command(name="add-person", description="Add a person to your contacts")
 async def add_person(
-    ctx: discord.A1525865745504931940pplicationContext,
+    ctx: discord.ApplicationContext,
     name: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
     common_location: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
     tier: discord.Option(str, "Pick a tier for how close they are with you", autocomplete=get_TIER), #type:ignore
