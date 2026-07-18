@@ -4,15 +4,17 @@ import discord #type:ignore
 from discord.ext import tasks #type:ignore
 from dotenv import load_dotenv #type:ignore
 import datetime
-from db.db import add_person_db, get_birthdays, schedule_person, get_next_contact_date, delete_person_from_db, daily_digest
+from db.db import add_person_db, get_birthdays, schedule_person, get_next_contact_date, delete_person_from_db, daily_digest, adjust_interval
 
 load_dotenv()  # load all the variables from the env file
 bot = discord.Bot()
 TARGET_TIME = datetime.time(hour=8, minute=0, tzinfo=datetime.timezone.utc)
 TIER_ORDER = ["close", "core", "active", "dormant"]
+INTERACTION_CHOICES=["great", "neutral", "flat"]
 USER_ID = int(os.environ["USER_ID"])
 BIRTHDAYS_CHANNEL = int(os.environ["BIRTHDAYS_CHANNEL"])
 DEBRIEF_CHANNEL = int(os.environ["DEBRIEF_CHANNEL"])
+FORUM_CHANNEL = int(os.environ["FORUM_CHANNEL"])
 
 @bot.event
 async def on_ready():
@@ -35,6 +37,9 @@ async def daily_debrief():
 # a list for auto completeting the tier portion of the add person query
 async def get_TIER(ctx : discord.AutocompleteContext):
     return [TIER for TIER in TIER_ORDER if ctx.value.lower() in TIER.lower()]
+
+async def get_interaction_choice(ctx : discord.AutocompleteContext):
+    return [CHOICE for CHOICE in INTERACTION_CHOICES if ctx.value.lower() in CHOICE.lower()]
 
 
 # slash command that shows the daily debrief
@@ -71,7 +76,7 @@ async def list_birthdays(ctx: discord.ApplicationContext):
 # A command to add people
 @bot.slash_command(name="add-person", description="Add a person to your contacts")
 async def add_person(
-    ctx: discord.ApplicationContext,
+    ctx: discord.A1525865745504931940pplicationContext,
     name: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
     common_location: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
     tier: discord.Option(str, "Pick a tier for how close they are with you", autocomplete=get_TIER), #type:ignore
@@ -80,7 +85,7 @@ async def add_person(
 ):
     await ctx.defer(ephemeral=True)
 
-    forum_channel = bot.get_channel(1525865745504931940)
+    forum_channel = bot.get_channel(FORUM_CHANNEL)
     if note and birthday and tier:
         content = (
             f"First Contact: {common_location}\nNote: {note}\nBirthday: {birthday}\nTier: {tier}"
@@ -105,6 +110,22 @@ async def add_person(
 
     schedule_person(add_person_db(name, common_location, birthday, tier, thread.id), datetime.datetime.now(datetime.timezone.utc).date())
     await ctx.respond(f"Post created successfully: {thread.mention}!, I've scheduled your next chat with {thread.name} on {get_next_contact_date(thread.id)}", ephemeral=True)
+
+@bot.slash_command(
+    name="interaction-update", description="Tell the bot how your interaction went, so it schedules your next chat"
+)
+async def interaction_update(
+    ctx: discord.ApplicationContext,
+    outcome: discord.Option(str, "Pick a choice for how your interaction went", autocomplete=get_interaction_choice), #type:ignore
+
+):
+    await ctx.defer(ephemeral=True)
+    thread_id = ctx.channel.id
+    adjust_interval(thread_id, outcome)
+    schedule_person(thread_id, datetime.datetime.now(datetime.timezone.utc).date())
+    next_date = get_next_contact_date(thread_id)
+    await ctx.respond(f"Got it! Next scheduled chat: {next_date}", ephemeral=True)
+
 
 
 # A command to update/edit people

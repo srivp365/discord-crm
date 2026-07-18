@@ -1,5 +1,5 @@
 import os
-
+from dataclasses import dataclass
 import libsql #type:ignore
 from dotenv import load_dotenv #type:ignore
 from datetime import datetime, timezone, timedelta
@@ -16,6 +16,21 @@ TIER_DEFAULTS = {
 }
 TIER_ORDER = ["close", "core", "active", "dormant"]
 
+# define a person mini class to make it easier to manage responses
+@dataclass
+class Person:
+    id: int
+    name: str
+    common_location: str
+    birthday: str
+    tier: str
+    thread_id: str
+    interval: int
+    flat_streak: int
+
+    @classmethod
+    def from_row(cls, row):
+        return cls(*row) if row else None
 
 
 # establish a connection to db
@@ -40,11 +55,20 @@ def execute_with_retry(query, params=()):
             return conn.execute(query, params)
         raise
 
+def get_person(thread_id):
+    row = execute_with_retry(
+        "SELECT id, name, common_location, birthday, tier, thread_id, interval, flat_streak FROM people WHERE thread_id = ?",
+        (thread_id,)
+    ).fetchone()
+    return Person.from_row(row)
+
 
 def add_person_db(name, common_location, birthday, tier, thread_id):
+    interval = TIER_DEFAULTS[tier]
+    last_connected = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     row = execute_with_retry(
-        "INSERT INTO people (name, common_location, birthday, tier, thread_id) VALUES (?, ?, ?, ?, ?) RETURNING *",
-        (name, common_location, birthday, tier, str(thread_id)), # explicit casting to fix thread_id truncation error
+        "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected) VALUES (?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
+        (name, common_location, birthday, tier, str(thread_id), interval, last_connected), # explicit casting to fix thread_id truncation error
     ).fetchone()
     conn.commit()
     return row
@@ -73,15 +97,18 @@ def get_birthdays():
     return todays_birthdays
 
 
-def schedule_person(person, today):
-    # calculates the ideal next contact date using person tier
-   ideal =  today + timedelta(days=TIER_DEFAULTS[person[5]])
+def schedule_person(thread_id, today):
+    person = get_person(thread_id)
+    if person is None:
+        return
 
-   offsets = [0]
-   for i in range (1, SEARCH_WINDOW+1):
+    ideal = today + timedelta(days=person.interval)
+
+    offsets = [0]
+    for i in range (1, SEARCH_WINDOW+1):
        offsets += [i, -i]
 
-   for offset in offsets:
+    for offset in offsets:
        candidate = ideal + timedelta(days=offset)
        if candidate <= today:
           continue
@@ -93,35 +120,38 @@ def schedule_person(person, today):
            return
 
 
-   best = min(
+    best = min(
         (ideal + timedelta(days=o) for o in offsets if ideal + timedelta(days=o) > today ),
         key = count_scheduled
     )
 
-   execute_with_retry(
+    execute_with_retry(
        "UPDATE people SET next_contact_date = (?) WHERE id == (?)",
        (best.strftime("%Y-%m-%d"), person[0])
    )
 
-   return
+    return
 
+def adjust_interval(thread_id, outcome):
+    person = get_person(thread_id)
+    if person is None:
+        return
 
-def adjust_interval(person, outcome):
     if outcome == "great":
-        person.target_interval_days = max(1, int(person.target_interval_days * 0.8))
+        person.interval = max(1, int(person.interval * 0.8))
         person.flat_streak = 0
     elif outcome == "neutral":
         person.flat_streak = 0
     elif outcome == "flat":
-        person.target_interval_days = min(int(person.target_interval_days * 1.3), 180)
+        person.interval = min(int(person.interval * 1.3), 180)
         person.flat_streak += 1
         if person.flat_streak >= 3:
             person.tier = demote(person.tier)
             person.flat_streak = 0
 
     execute_with_retry(
-        "UPDATE people SET target_interval_days = ?, tier = ?, flat_streak = ? WHERE id = ?",
-        (person.target_interval_days, person.tier, person.flat_streak, person.id)
+        "UPDATE people SET interval = ?, tier = ?, flat_streak = ? WHERE id = ?",
+        (person.interval, person.tier, person.flat_streak, person.id)
     )
     conn.commit()
 
