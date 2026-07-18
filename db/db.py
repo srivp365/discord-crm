@@ -1,8 +1,7 @@
-from calendar import month
 import os
 
-import libsql
-from dotenv import load_dotenv
+import libsql #type:ignore
+from dotenv import load_dotenv #type:ignore
 from datetime import datetime, timezone, timedelta
 
 load_dotenv()  # load all the variables from the env file
@@ -17,6 +16,8 @@ TIER_DEFAULTS = {
 }
 TIER_ORDER = ["close", "core", "active", "dormant"]
 
+
+
 # establish a connection to db
 conn = libsql.connect(
     database=os.environ["TURSO_DATABASE_URL"],
@@ -25,20 +26,37 @@ conn = libsql.connect(
 
 
 
+# ensures that db connection timeouts don't break the app
+def execute_with_retry(query, params=()):
+    global conn
+    try:
+        return conn.execute(query, params)
+    except ValueError as e:
+        if "stream not found" in str(e):
+            conn = libsql.connect(
+                database=os.environ["TURSO_DATABASE_URL"],
+                auth_token=os.environ["TURSO_AUTH_TOKEN"],
+            )
+            return conn.execute(query, params)
+        raise
+
+
 def add_person_db(name, common_location, birthday, tier, thread_id):
-    row = conn.execute(
+    row = execute_with_retry(
         "INSERT INTO people (name, common_location, birthday, tier, thread_id) VALUES (?, ?, ?, ?, ?) RETURNING *",
-        (name, common_location, birthday, tier, thread_id),
+        (name, common_location, birthday, tier, str(thread_id)), # explicit casting to fix thread_id truncation error
     ).fetchone()
     conn.commit()
     return row
 
 
 def delete_person_from_db(thread_id):
-    conn.execute(
+    cursor = execute_with_retry(
         "DELETE FROM people WHERE thread_id = ?",
-        (thread_id,)
+        (str(thread_id),)
     )
+    conn.commit()
+    return cursor.rowcount > 0
 
 def get_birthdays():
     # grab today's date
@@ -47,7 +65,7 @@ def get_birthdays():
     six_month_day = (today_utc + timedelta(weeks=24)).strftime("%m-%d")
 
     # grab birthdays
-    todays_birthdays = conn.execute(
+    todays_birthdays = execute_with_retry(
         "SELECT name FROM people WHERE strftime('%m-%d', birthday) BETWEEN ? AND ?",
         (today_month_day, six_month_day)
     ).fetchall()
@@ -68,7 +86,7 @@ def schedule_person(person, today):
        if candidate <= today:
           continue
        if count_scheduled(candidate) < DAILY_CAPACITY:
-           conn.execute(
+           execute_with_retry(
                "UPDATE people SET next_contact_date = (?) WHERE id == (?)",
                (candidate.strftime("%Y-%m-%d"), person[0])
            )
@@ -80,7 +98,7 @@ def schedule_person(person, today):
         key = count_scheduled
     )
 
-   conn.execute(
+   execute_with_retry(
        "UPDATE people SET next_contact_date = (?) WHERE id == (?)",
        (best.strftime("%Y-%m-%d"), person[0])
    )
@@ -101,7 +119,7 @@ def adjust_interval(person, outcome):
             person.tier = demote(person.tier)
             person.flat_streak = 0
 
-    conn.execute(
+    execute_with_retry(
         "UPDATE people SET target_interval_days = ?, tier = ?, flat_streak = ? WHERE id = ?",
         (person.target_interval_days, person.tier, person.flat_streak, person.id)
     )
@@ -115,14 +133,14 @@ def demote(tier):
 
 # check how many people are scheduled for a given date
 def count_scheduled(date):
-    result = conn.execute(
+    result = execute_with_retry(
         "SELECT COUNT(*) FROM people WHERE next_contact_date = ?",
         (date.strftime("%Y-%m-%d"),)
     ).fetchone()
     return result[0]
 
 def get_next_contact_date(person_thread):
-    row = conn.execute(
+    row = execute_with_retry(
         "SELECT next_contact_date FROM people WHERE thread_id == ?",
         (person_thread,)
     ).fetchone()
@@ -130,7 +148,13 @@ def get_next_contact_date(person_thread):
 
 
 def daily_digest():
-    peeps = conn.execute(
-        "SELECT name FROM people WHERE next_contact_date = today() ORDER BY tier LIMIT 2;"
-    ).fetchone()
-    return peeps[0]
+    today_utc = datetime.now(timezone.utc)
+    today_month_day = today_utc.strftime("%Y-%m-%d")
+    peeps = execute_with_retry(
+        "SELECT name FROM people WHERE next_contact_date = ? ORDER BY tier LIMIT 2;",
+        (today_month_day, )
+    ).fetchall()
+    if peeps is None or len(peeps) == 0:
+        return "Nobody 🫠"
+    names = [row[0] for row in peeps]
+    return ", ".join(names)
