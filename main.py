@@ -135,10 +135,10 @@ async def interaction_update(
 )
 async def add_note(
     ctx: discord.ApplicationContext,
-    thread_id: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
     note: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
 ):
     try:
+        thread_id = ctx.channel.id
         # Convert the ID string to an integer
         channel_id = int(thread_id)
 
