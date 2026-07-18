@@ -101,6 +101,15 @@ def get_birthdays():
 
     return execute_with_retry(query, params).fetchall()
 
+def get_today_birthdays():
+    today_utc = datetime.now(timezone.utc)
+    today_month_day = today_utc.strftime("%m-%d")
+
+    query = "SELECT name FROM people WHERE strftime('%m-%d', birthday) = ?"
+    params = (today_month_day)
+
+    return execute_with_retry(query, params).fetchall()
+
 
 def schedule_person(thread_id, today):
     person = get_person(thread_id)

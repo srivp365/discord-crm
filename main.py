@@ -4,7 +4,7 @@ import discord #type:ignore
 from discord.ext import tasks #type:ignore
 from dotenv import load_dotenv #type:ignore
 import datetime
-from db.db import add_person_db, get_birthdays, schedule_person, get_next_contact_date, delete_person_from_db, daily_digest, adjust_interval
+from db.db import add_person_db, get_birthdays, schedule_person, get_next_contact_date, delete_person_from_db, daily_digest, adjust_interval, get_today_birthdays
 
 load_dotenv()  # load all the variables from the env file
 bot = discord.Bot()
@@ -26,7 +26,7 @@ async def on_ready():
 async def daily_debrief():
     channel = bot.get_channel(BIRTHDAYS_CHANNEL)
     await channel.send(f"Good morning!, <@{USER_ID}>!, Here's a brief, to keep in touch with your peeps")
-    birthday_people = get_birthdays()
+    birthday_people = get_today_birthdays()
     if len(birthday_people) < 1:
         await channel.send("Today is nobody's birthday")
     for person in birthday_people:
@@ -48,7 +48,7 @@ async def daily_debrief_force(ctx: discord.ApplicationContext):
     channel = bot.get_channel(DEBRIEF_CHANNEL)
     await ctx.defer()
     await ctx.respond(f"Good morning <@{USER_ID}>!, Here's a brief, to keep in touch with your peeps")
-    birthday_people = get_birthdays()
+    birthday_people = get_today_birthdays()
     if len(birthday_people) < 1:
         await channel.send("Today is nobody's birthday")
     for person in birthday_people:
