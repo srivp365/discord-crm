@@ -70,7 +70,7 @@ async def list_birthdays(ctx: discord.ApplicationContext):
     if len(birthday_people) < 1:
         await channel.send("No birthdays for the next 6 months 🫩")
         return
-    list_people = ', '.join(birthday_people)
+    list_people = ', '.join(name for (name,) in birthday_people)
     await channel.send(f"Alright!, here's your list: {list_people}")
 
 # A command to add people

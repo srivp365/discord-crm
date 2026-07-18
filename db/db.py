@@ -85,18 +85,20 @@ def delete_person_from_db(thread_id):
     return cursor.rowcount > 0
 
 def get_birthdays():
-    # grab today's date
     today_utc = datetime.now(timezone.utc)
     today_month_day = today_utc.strftime("%m-%d")
     six_month_day = (today_utc + timedelta(weeks=24)).strftime("%m-%d")
 
-    # grab birthdays
-    todays_birthdays = execute_with_retry(
-        "SELECT name FROM people WHERE strftime('%m-%d', birthday) BETWEEN ? AND ?",
-        (today_month_day, six_month_day)
-    ).fetchall()
+    if today_month_day <= six_month_day:
+        # normal case: range doesn't cross year boundary (e.g. Mar → Sep)
+        query = "SELECT name FROM people WHERE strftime('%m-%d', birthday) BETWEEN ? AND ?"
+        params = (today_month_day, six_month_day)
+    else:
+        # wraparound case: range crosses Dec 31 → Jan 1 (e.g. Jul → Jan)
+        query = "SELECT name FROM people WHERE strftime('%m-%d', birthday) >= ? OR strftime('%m-%d', birthday) <= ?"
+        params = (today_month_day, six_month_day)
 
-    return todays_birthdays
+    return execute_with_retry(query, params).fetchall()
 
 
 def schedule_person(thread_id, today):
