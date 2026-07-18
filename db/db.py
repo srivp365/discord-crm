@@ -24,9 +24,11 @@ class Person:
     common_location: str
     birthday: str
     tier: str
-    thread_id: str
     interval: int
     flat_streak: int
+    thread_id: str
+    next_contact_date: str
+
 
     @classmethod
     def from_row(cls, row):
@@ -57,8 +59,8 @@ def execute_with_retry(query, params=()):
 
 def get_person(thread_id):
     row = execute_with_retry(
-        "SELECT id, name, common_location, birthday, tier, thread_id, interval, flat_streak FROM people WHERE thread_id = ?",
-        (thread_id,)
+        "SELECT id, name, common_location, birthday, tier, interval, flat_streak, thread_id, next_contact_date FROM people WHERE thread_id = ?",
+        (str(thread_id),)
     ).fetchone()
     return Person.from_row(row)
 
@@ -67,7 +69,7 @@ def add_person_db(name, common_location, birthday, tier, thread_id):
     interval = TIER_DEFAULTS[tier]
     last_connected = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     row = execute_with_retry(
-        "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected) VALUES (?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
+        "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
         (name, common_location, birthday, tier, str(thread_id), interval, last_connected), # explicit casting to fix thread_id truncation error
     ).fetchone()
     conn.commit()
@@ -115,8 +117,11 @@ def schedule_person(thread_id, today):
        if count_scheduled(candidate) < DAILY_CAPACITY:
            execute_with_retry(
                "UPDATE people SET next_contact_date = (?) WHERE id == (?)",
-               (candidate.strftime("%Y-%m-%d"), person[0])
+               (candidate.strftime("%Y-%m-%d"), person.id)
            )
+           conn.commit()
+
+
            return
 
 
@@ -127,8 +132,9 @@ def schedule_person(thread_id, today):
 
     execute_with_retry(
        "UPDATE people SET next_contact_date = (?) WHERE id == (?)",
-       (best.strftime("%Y-%m-%d"), person[0])
-   )
+       (best.strftime("%Y-%m-%d"), person.id)
+    )
+    conn.commit()
 
     return
 
@@ -156,6 +162,7 @@ def adjust_interval(thread_id, outcome):
     conn.commit()
 
 
+
 # demote function to move drop someone down a tier
 def demote(tier):
     idx = TIER_ORDER.index(tier)
@@ -172,7 +179,7 @@ def count_scheduled(date):
 def get_next_contact_date(person_thread):
     row = execute_with_retry(
         "SELECT next_contact_date FROM people WHERE thread_id == ?",
-        (person_thread,)
+        (str(person_thread),)
     ).fetchone()
     return row[0] if row else None
 

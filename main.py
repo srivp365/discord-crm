@@ -107,8 +107,8 @@ async def add_person(
         content=content,
     )
 
-
-    schedule_person(add_person_db(name, common_location, birthday, tier, thread.id), datetime.datetime.now(datetime.timezone.utc).date())
+    add_person_db(name, common_location, birthday, tier, thread.id)
+    schedule_person(thread.id, datetime.datetime.now(datetime.timezone.utc).date())
     await ctx.respond(f"Post created successfully: {thread.mention}!, I've scheduled your next chat with {thread.name} on {get_next_contact_date(thread.id)}", ephemeral=True)
 
 @bot.slash_command(
@@ -116,6 +116,7 @@ async def add_person(
 )
 async def interaction_update(
     ctx: discord.ApplicationContext,
+
     outcome: discord.Option(str, "Pick a choice for how your interaction went", autocomplete=get_interaction_choice), #type:ignore
 
 ):
