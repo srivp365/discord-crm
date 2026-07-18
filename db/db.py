@@ -89,13 +89,14 @@ def get_birthdays():
     today_month_day = today_utc.strftime("%m-%d")
     six_month_day = (today_utc + timedelta(weeks=24)).strftime("%m-%d")
 
+    # unwrapping logic written by AI
     if today_month_day <= six_month_day:
         # normal case: range doesn't cross year boundary (e.g. Mar → Sep)
-        query = "SELECT name FROM people WHERE strftime('%m-%d', birthday) BETWEEN ? AND ?"
+        query = "SELECT name, birthday FROM people WHERE strftime('%m-%d', birthday) BETWEEN ? AND ?"
         params = (today_month_day, six_month_day)
     else:
         # wraparound case: range crosses Dec 31 → Jan 1 (e.g. Jul → Jan)
-        query = "SELECT name FROM people WHERE strftime('%m-%d', birthday) >= ? OR strftime('%m-%d', birthday) <= ?"
+        query = "SELECT name, birthday FROM people WHERE strftime('%m-%d', birthday) >= ? OR strftime('%m-%d', birthday) <= ?"
         params = (today_month_day, six_month_day)
 
     return execute_with_retry(query, params).fetchall()
