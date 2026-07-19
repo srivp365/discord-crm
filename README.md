@@ -108,7 +108,7 @@ Have Python and Pycord installed for development, and uv for virtual environment
 
 ### Installation
 
-1. Get a free API Key at [https://example.com](https://example.com)
+1. Generate a TURSO db and a new bot on discord
 2. Clone the repo
    ```sh
    git clone https://github.com/srivp365/discord-crm.git
@@ -156,6 +156,11 @@ Upon completion, the bot responds with the person created (linked to the post) a
 <img src="/assets/readme_imgs/add_person_success_post.png">
 Success state!
 
+#### Daily debrief
+<img src="/assets/readme_imgs/daily_debrief.png">
+Calling the daily-debrief function fetches the people to reach out to and the birthdays for people today.
+
+
 ### **People specific commands (can only be executed in the thread of a specific person)**
 
 #### Update your latest interaction
@@ -179,6 +184,7 @@ Adds a note to a user.
 
 <img src="/assets/readme_imgs/add_note_success.png">
 Success state!
+
 
 
 <!-- ROADMAP -->
