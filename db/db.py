@@ -3,8 +3,13 @@ from dataclasses import dataclass
 import libsql #type:ignore
 from dotenv import load_dotenv #type:ignore
 from datetime import datetime, timezone, timedelta
+from cryptography.fernet import Fernet
+
 
 load_dotenv()  # load all the variables from the env file
+
+KEY = os.environ["ENCRYPTION_KEY"].encode()
+cipher = Fernet(KEY)
 
 DAILY_CAPACITY = 3
 SEARCH_WINDOW = 7
@@ -32,7 +37,30 @@ class Person:
 
     @classmethod
     def from_row(cls, row):
-        return cls(*row) if row else None
+        if row is None:
+            return None
+        id, name, common_location, birthday, tier, interval, flat_streak, thread_id, next_contact_date = row
+        return cls(
+            id=id,
+            name=decrypt(name),
+            common_location=decrypt(common_location),
+            birthday=birthday,   # not encrypted, per what we settled on last message
+            tier=tier,
+            interval=interval,
+            flat_streak=flat_streak,
+            thread_id=thread_id,
+            next_contact_date = next_contact_date
+        )
+
+def encrypt(value: str) -> str:
+    if value is None:
+        return None
+    return cipher.encrypt(value.encode()).decode()
+
+def decrypt(value: str) -> str:
+    if value is None:
+        return None
+    return cipher.decrypt(value.encode()).decode()
 
 
 # establish a connection to db
@@ -57,6 +85,14 @@ def execute_with_retry(query, params=()):
             return conn.execute(query, params)
         raise
 
+
+def init_setup(owner_id, guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity):
+    execute_with_retry(
+        "INSERT INTO guild_settings (owner_id, guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity, created_at) VALUES (?, ?, ?, ?, ?, ? ,?)",
+        (owner_id, guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity)
+    )
+
+
 def get_person(thread_id):
     row = execute_with_retry(
         "SELECT id, name, common_location, birthday, tier, interval, flat_streak, thread_id, next_contact_date FROM people WHERE thread_id = ?",
@@ -70,7 +106,7 @@ def add_person_db(name, common_location, birthday, tier, thread_id):
     last_connected = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     row = execute_with_retry(
         "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
-        (name, common_location, birthday, tier, str(thread_id), interval, last_connected), # explicit casting to fix thread_id truncation error
+        (encrypt(name), encrypt(common_location), encrypt(birthday), tier, str(thread_id), interval, last_connected), # explicit casting to fix thread_id truncation error
     ).fetchone()
     conn.commit()
     return row
@@ -84,29 +120,34 @@ def delete_person_from_db(thread_id):
     conn.commit()
     return cursor.rowcount > 0
 
+# interesting logic suggested by Claude, combine year and date into a single number using month * 100 + day
 def get_birthdays():
     today_utc = datetime.now(timezone.utc)
-    today_month_day = today_utc.strftime("%m-%d")
-    six_month_day = (today_utc + timedelta(weeks=24)).strftime("%m-%d")
+    today_key = today_utc.month * 100 + today_utc.day
+    six_month_date = today_utc + timedelta(weeks=24)
+    six_month_key = six_month_date.month * 100 + six_month_date.day
 
-    # unwrapping logic written by AI
-    if today_month_day <= six_month_day:
-        # normal case: range doesn't cross year boundary (e.g. Mar → Sep)
-        query = "SELECT name, birthday FROM people WHERE strftime('%m-%d', birthday) BETWEEN ? AND ?"
-        params = (today_month_day, six_month_day)
+    if today_key <= six_month_key:
+        query = """
+            SELECT name, birthday FROM people
+            WHERE (birth_month * 100 + birth_day) BETWEEN ? AND ?
+        """
+        params = (today_key, six_month_key)
     else:
-        # wraparound case: range crosses Dec 31 → Jan 1 (e.g. Jul → Jan)
-        query = "SELECT name, birthday FROM people WHERE strftime('%m-%d', birthday) >= ? OR strftime('%m-%d', birthday) <= ?"
-        params = (today_month_day, six_month_day)
+        query = """
+            SELECT name, birthday FROM people
+            WHERE (birth_month * 100 + birth_day) >= ?
+                OR (birth_month * 100 + birth_day) <= ?
+        """
+        params = (today_key, six_month_key)
 
     return execute_with_retry(query, params).fetchall()
 
 def get_today_birthdays():
     today_utc = datetime.now(timezone.utc)
-    today_month_day = today_utc.strftime("%m-%d")
 
-    query = "SELECT name FROM people WHERE strftime('%m-%d', birthday) = ?"
-    params = (today_month_day, )
+    query = "SELECT name FROM people WHERE birth_month = ? AND birth_day = ?"
+    params = (today_utc.month, today_utc.day)
 
     return execute_with_retry(query, params).fetchall()
 
