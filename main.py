@@ -14,11 +14,6 @@ TIER_ORDER = ["close", "core", "active", "dormant"]
 INTERACTION_CHOICES=["great", "neutral", "flat"]
 
 
-
-
-
-
-
 @bot.event
 async def on_ready():
     daily_debrief.start() #type:ignore

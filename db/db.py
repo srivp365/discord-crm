@@ -11,7 +11,6 @@ load_dotenv()  # load all the variables from the env file
 KEY = os.environ["ENCRYPTION_KEY"].encode()
 cipher = Fernet(KEY)
 
-DAILY_CAPACITY = 3
 SEARCH_WINDOW = 7
 TIER_DEFAULTS = {
     "close": 4,
@@ -44,7 +43,7 @@ class Person:
             id=id,
             name=decrypt(name),
             common_location=decrypt(common_location),
-            birthday=birthday,   # not encrypted, per what we settled on last message
+            birthday=decrypt(birthday),
             tier=tier,
             interval=interval,
             flat_streak=flat_streak,
@@ -156,7 +155,7 @@ def get_today_birthdays(owner_id):
     return execute_with_retry(query, params).fetchall()
 
 
-def schedule_person(thread_id, today):
+def schedule_person(thread_id, today, daily_capacity, owner_id):
     person = get_person(thread_id)
     if person is None:
         return
@@ -171,10 +170,10 @@ def schedule_person(thread_id, today):
        candidate = ideal + timedelta(days=offset)
        if candidate <= today:
           continue
-       if count_scheduled(candidate) < DAILY_CAPACITY:
+       if count_scheduled(candidate) < daily_capacity:
            execute_with_retry(
-               "UPDATE people SET next_contact_date = (?) WHERE id == (?)",
-               (candidate.strftime("%Y-%m-%d"), person.id)
+               "UPDATE people SET next_contact_date = (?) WHERE id = (?) AND owner_id = ?",
+               (candidate.strftime("%Y-%m-%d"), person.id, owner_id)
            )
            conn.commit()
 
