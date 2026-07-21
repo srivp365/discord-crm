@@ -106,9 +106,12 @@ def get_person(thread_id):
 def add_person_db(name, common_location, birthday, tier, thread_id, owner_id):
     interval = TIER_DEFAULTS[tier]
     last_connected = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    birth_month = birthday[5:7]
+    birth_day = birthday[8:10]
     row = execute_with_retry(
-        "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
-        (encrypt(name), encrypt(common_location), encrypt(birthday), tier, str(thread_id), interval, last_connected, owner_id), # explicit casting to fix thread_id truncation error
+        "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected, owner_id, birth_month, birth_day) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
+        (encrypt(name), encrypt(common_location), encrypt(birthday), tier, str(thread_id), interval, last_connected, owner_id, birth_month, birth_day), # explicit casting to fix thread_id truncation error
     ).fetchone()
     conn.commit()
     return row
