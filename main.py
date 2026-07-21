@@ -4,7 +4,8 @@ import discord #type:ignore
 from discord.ext import tasks #type:ignore
 from dotenv import load_dotenv #type:ignore
 import datetime
-from db.db import add_person_db, get_birthdays, schedule_person, get_next_contact_date, delete_person_from_db, daily_digest, adjust_interval, get_today_birthdays
+from db.db import add_person_db, get_birthdays, schedule_person, get_next_contact_date, delete_person_from_db, daily_digest, adjust_interval, get_today_birthdays, init_setup
+
 
 load_dotenv()  # load all the variables from the env file
 bot = discord.Bot()
@@ -15,6 +16,8 @@ USER_ID = int(os.environ["USER_ID"])
 BIRTHDAYS_CHANNEL = int(os.environ["BIRTHDAYS_CHANNEL"])
 DEBRIEF_CHANNEL = int(os.environ["DEBRIEF_CHANNEL"])
 FORUM_CHANNEL = int(os.environ["FORUM_CHANNEL"])
+
+
 
 @bot.event
 async def on_ready():
@@ -34,12 +37,30 @@ async def daily_debrief():
 
     await channel.send(f"Today, you should reach out to the following people to keep in touch: {daily_digest()}")
 
-# a list for auto completeting the tier portion of the add person query
+# List functions for auto complete on slash commands
 async def get_TIER(ctx : discord.AutocompleteContext):
     return [TIER for TIER in TIER_ORDER if ctx.value.lower() in TIER.lower()]
 
 async def get_interaction_choice(ctx : discord.AutocompleteContext):
     return [CHOICE for CHOICE in INTERACTION_CHOICES if ctx.value.lower() in CHOICE.lower()]
+
+# A command to delete people
+@bot.slash_command(
+    name="setup", description="Initial Setup Wizard"
+)
+async def setup(
+    ctx: discord.ApplicationContext,
+    forum_channel_id: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
+    birthdays_channel_id: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
+    digest_channel_id: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
+    digest_hour: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
+    daily_capacity: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
+
+):
+    init_setup(ctx.author.id, ctx.guild.id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity)
+    await ctx.respond(f"Alright <@{ctx.author.id}>!, you're setup to use the app. Hope you like it. Feel free to reach out to me via discord <@{782998240081084416}>")
+
+
 
 
 # slash command that shows the daily debrief
