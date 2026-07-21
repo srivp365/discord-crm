@@ -16,7 +16,6 @@ INTERACTION_CHOICES=["great", "neutral", "flat"]
 
 @bot.event
 async def on_ready():
-
     daily_debrief.start() #type:ignore
     print(f"{bot.user} is ready and online!")
 
@@ -243,7 +242,7 @@ async def delete_person(
 @bot.slash_command(
     name="clear-bot-messages", description="Delete the bot's last 'count' messages in this channel"
 )
-async def clear_bot_messages(ctx: discord.ApplicationContext, count: discord.Option(discord.SlashCommandOptionType.integer)):
+async def clear_bot_messages(ctx: discord.ApplicationContext, count: discord.Option(discord.SlashCommandOptionType.integer)): #type:ignore
     await ctx.defer(ephemeral=True)
 
     deleted = await ctx.channel.purge(
