@@ -139,9 +139,13 @@ Have Python and Pycord installed for development, and uv for virtual environment
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-The bot comes with  a few basic commands as demonstrated below. 
+The bot comes with a few basic commands as demonstrated below. 
 
 ### **General Commands (can be executed anywhere)**
+
+#### Initial Setup
+<img src="/assets/readme_imgs/server_setup.jpg">
+You pass in channels you created for each part, and this setups up the bot to send messages there. (Owner and Guild information is inferred based on who send the message and where. )
 
 #### Add person
 <img src="/assets/readme_imgs/add_person.jpg">
@@ -185,13 +189,17 @@ Adds a note to a user.
 <img src="/assets/readme_imgs/add_note_success.png">
 Success state!
 
+## Things I learned
+1. The importance of conn.commit (that is, actually commiting to the database instead of just executing the query and not saving changes 💀)
+2. I love raw sql (even if it can be a little unsafe at time, I will switch away from this if I get actual users, but until then, it just feels more natural compared to using an ORM)
+3. Python is awesome!
+4. Learning to use Promises, Async and Await
 
 
 <!-- ROADMAP -->
 ## Roadmap
 
 - [ ] Add additional note functionality (to make notes more useful)
-- [ ] Fix the db row reads on the birthdays column, since using strftime forces the db to read every row and run the conversion instead of just fetching the rows we need.
 - [ ] Add a nicer response body from the bot when responding to slash commands + timed briefs
 
 See the [open issues](https://github.com/srivp365/discord-crm/issues) for a full list of proposed features (and known issues).
