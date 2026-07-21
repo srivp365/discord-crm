@@ -265,7 +265,7 @@ async def get_all_guild_settings():
             "forum_channel_id": int(row[1]),
             "birthdays_channel_id": int(row[2]),
             "digest_channel_id": int(row[3]),
-            "digest_hour": row[4],
+            "digest_hour": int(row[4]),
             "daily_capacity": row[5],
             "owner_id": int(row[6]),
         }

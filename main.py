@@ -16,17 +16,25 @@ INTERACTION_CHOICES=["great", "neutral", "flat"]
 
 @bot.event
 async def on_ready():
+
     daily_debrief.start() #type:ignore
     print(f"{bot.user} is ready and online!")
 
-# bot loop that sends out the daily debrief at 8 am
-@tasks.loop(time=TARGET_TIME)
+@tasks.loop(hours=1)
 async def daily_debrief():
+    current_hour = datetime.datetime.now(datetime.timezone.utc).hour
+
     all_settings = await get_all_guild_settings()
 
     for settings in all_settings:
+        if settings["digest_hour"] != current_hour:
+            continue  # not this guild's time yet
+
         user = settings["owner_id"]
         debrief_channel = bot.get_channel(settings["digest_channel_id"])
+        if debrief_channel is None:
+            continue
+
         await debrief_channel.send(f"Good morning!, <@{user}>!, Here's a brief, to keep in touch with your peeps")
         birthday_people = get_today_birthdays(user)
         if len(birthday_people) < 1:
@@ -35,6 +43,7 @@ async def daily_debrief():
             await debrief_channel.send(f"Today is {person}'s birthday!, wish them Happy Birthday 🥳")
 
         await debrief_channel.send(f"Today, you should reach out to the following people to keep in touch: {daily_digest(user)}")
+
 
 # List functions for auto complete on slash commands
 async def get_TIER(ctx : discord.AutocompleteContext):
@@ -52,7 +61,7 @@ async def setup(
     forum_channel: discord.Option(discord.SlashCommandOptionType.channel), #type:ignore
     birthday_channel: discord.Option(discord.SlashCommandOptionType.channel), #type:ignore
     digest_channel: discord.Option(discord.SlashCommandOptionType.channel), #type:ignore
-    digest_hour: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
+    digest_hour: discord.Option(discord.SlashCommandOptionType.integer, min_value=0, max_value=23), #type:ignore
     daily_capacity: discord.Option(discord.SlashCommandOptionType.string), #type:ignore
 
 ):
