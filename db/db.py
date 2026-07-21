@@ -92,7 +92,6 @@ def init_setup(owner_id, guild_id, forum_channel_id, birthdays_channel_id, diges
         (str(guild_id), forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity, str(owner_id))
     )
     conn.commit()
-    print("succesfully inserted!")
 
 
 
