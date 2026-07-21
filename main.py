@@ -157,7 +157,7 @@ async def add_person(
     )
 
     add_person_db(name, common_location, birthday, tier, thread.id, ctx.author.id)
-    schedule_person(thread.id, datetime.datetime.now(datetime.timezone.utc).date())
+    schedule_person(thread.id, datetime.datetime.now(datetime.timezone.utc).date(), int(settings["forum_channel_id"]), settings["owner_id"])
     await ctx.respond(f"Post created successfully: {thread.mention}!, I've scheduled your next chat with {thread.name} on {get_next_contact_date(thread.id)}", ephemeral=True)
 
 @bot.slash_command(
@@ -170,9 +170,14 @@ async def interaction_update(
 
 ):
     await ctx.defer(ephemeral=True)
+    settings = await get_guild_settings(ctx.guild.id)
+    if settings is None:
+        await ctx.respond("This server hasn't run `/setup` yet.")
+        return
+
     thread_id = ctx.channel.id
     adjust_interval(thread_id, outcome)
-    schedule_person(thread_id, datetime.datetime.now(datetime.timezone.utc).date())
+    schedule_person(thread_id, datetime.datetime.now(datetime.timezone.utc).date(), int(settings["forum_channel_id"]), settings["owner_id"])
     next_date = get_next_contact_date(thread_id)
     await ctx.respond(f"Got it! Next scheduled chat: {next_date}", ephemeral=True)
 
