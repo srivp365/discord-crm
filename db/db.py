@@ -146,7 +146,11 @@ def get_birthdays(owner_id):
         """
         params = (owner_id, today_key, six_month_key)
 
-    return execute_with_retry(query, params).fetchall()
+    blist = execute_with_retry(query, params).fetchall()
+    res_birthday = []
+    for name, birthday in blist:
+        res_birthday.append((decrypt(name), decrypt(birthday)))
+    return res_birthday
 
 def get_today_birthdays(owner_id):
     today_utc = datetime.now(timezone.utc)
