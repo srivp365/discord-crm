@@ -138,6 +138,10 @@ Have Python and Pycord installed for development, and uv for virtual environment
 
 <!-- USAGE EXAMPLES -->
 ## Usage
+<img src="/assets/readme_imgs/ideal_folder_structure.png">
+
+The ideal folder structure for this bot (although you can vary if however you'd like!)
+
 
 The bot comes with a few basic commands as demonstrated below. 
 
@@ -150,8 +154,7 @@ You pass in channels you created for each part, and this setups up the bot to se
 #### Add person
 <img src="/assets/readme_imgs/add_person.jpg">
 
-Used too add a person (as a post) to the forum channel.
-
+Used too add a person (as a post) to the forum channel. *Birthday is taken in YYYY-MM-DD format*
 
 <img src="/assets/readme_imgs/add_person_success.jpg">
     
@@ -164,6 +167,10 @@ Success state!
 <img src="/assets/readme_imgs/daily_debrief.png">
 Calling the daily-debrief function fetches the people to reach out to and the birthdays for people today.
 
+#### Clear Bot Messages
+<img src="/assets/readme_imgs/clear_msgs_cmd.png.png">
+
+Calling this and specifying a number, tells the bot to clear out those number of messages (doesn't count for ephereal / dissmisable messages).
 
 ### **People specific commands (can only be executed in the thread of a specific person)**
 
