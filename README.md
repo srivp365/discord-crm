@@ -80,7 +80,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
+[![Product Name Screen Shot][product-screenshot]](https://discord.com/oauth2/authorize?client_id=1525497439606538350)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -100,7 +100,8 @@
 <!-- GETTING STARTED -->
 ## Getting Started
 
-The bot is available on the marketplace!, you can check it out there if you'd like. (Will update the url eventually). Otherwise, I've outlined below the steps to get run it locally!
+The bot is available to install through this [link](https://discord.com/oauth2/authorize?client_id=1525497439606538350) (not up on the top.gg yet)!, you can check it out there if you'd like. 
+Otherwise, I've outlined below the steps to get run it locally, in case you want to self host it!
 
 ### Prerequisites
 Have Python and Pycord installed for development, and uv for virtual environment creation and package management (should you like, local dev using venv and pip works as well).
@@ -282,7 +283,7 @@ Project Link: [https://github.com/srivp365/discord-crm](https://github.com/srivp
 [license-url]: https://github.com/srivp365/discord-crm/blob/master/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/srivp/
-[product-screenshot]: images/screenshot.png
+[product-screenshot]: /assets/banner.png
 
 <!-- Shields.io badges. You can a comprehensive list with many more badges at: https://github.com/inttter/md-badges -->
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
