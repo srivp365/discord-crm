@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import libsql #type:ignore
 from dotenv import load_dotenv #type:ignore
 from datetime import datetime, timezone, timedelta
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet #type:ignore
 
 
 load_dotenv()  # load all the variables from the env file
@@ -71,6 +71,7 @@ conn = libsql.connect(
 
 
 
+
 # ensures that db connection timeouts don't break the app
 def execute_with_retry(query, params=()):
     global conn
@@ -88,9 +89,12 @@ def execute_with_retry(query, params=()):
 
 def init_setup(owner_id, guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity):
     execute_with_retry(
-        "INSERT INTO guild_settings (owner_id, guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity, created_at) VALUES (?, ?, ?, ?, ?, ? ,?)",
-        (owner_id, guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity)
+        "INSERT INTO guild_settings (guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (str(guild_id), forum_channel_id, birthdays_channel_id, digest_channel_id, digest_hour, daily_capacity, str(owner_id))
     )
+    conn.commit()
+    print("succesfully inserted!")
+
 
 
 def get_person(thread_id):
@@ -101,12 +105,12 @@ def get_person(thread_id):
     return Person.from_row(row)
 
 
-def add_person_db(name, common_location, birthday, tier, thread_id):
+def add_person_db(name, common_location, birthday, tier, thread_id, owner_id):
     interval = TIER_DEFAULTS[tier]
     last_connected = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     row = execute_with_retry(
-        "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
-        (encrypt(name), encrypt(common_location), encrypt(birthday), tier, str(thread_id), interval, last_connected), # explicit casting to fix thread_id truncation error
+        "INSERT INTO people (name, common_location, birthday, tier, thread_id, interval, last_conected, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *", # typo on purpose because I named the column wrong :sob:
+        (encrypt(name), encrypt(common_location), encrypt(birthday), tier, str(thread_id), interval, last_connected, owner_id), # explicit casting to fix thread_id truncation error
     ).fetchone()
     conn.commit()
     return row
@@ -121,7 +125,7 @@ def delete_person_from_db(thread_id):
     return cursor.rowcount > 0
 
 # interesting logic suggested by Claude, combine year and date into a single number using month * 100 + day
-def get_birthdays():
+def get_birthdays(owner_id):
     today_utc = datetime.now(timezone.utc)
     today_key = today_utc.month * 100 + today_utc.day
     six_month_date = today_utc + timedelta(weeks=24)
@@ -130,24 +134,24 @@ def get_birthdays():
     if today_key <= six_month_key:
         query = """
             SELECT name, birthday FROM people
-            WHERE (birth_month * 100 + birth_day) BETWEEN ? AND ?
+            WHERE (birth_month * 100 + birth_day) BETWEEN ? AND ? AND owner_id = ?
         """
-        params = (today_key, six_month_key)
+        params = (today_key, six_month_key, owner_id)
     else:
         query = """
             SELECT name, birthday FROM people
-            WHERE (birth_month * 100 + birth_day) >= ?
+            WHERE owner_id = ? AND (birth_month * 100 + birth_day) >= ?
                 OR (birth_month * 100 + birth_day) <= ?
         """
-        params = (today_key, six_month_key)
+        params = (owner_id, today_key, six_month_key)
 
     return execute_with_retry(query, params).fetchall()
 
-def get_today_birthdays():
+def get_today_birthdays(owner_id):
     today_utc = datetime.now(timezone.utc)
 
-    query = "SELECT name FROM people WHERE birth_month = ? AND birth_day = ?"
-    params = (today_utc.month, today_utc.day)
+    query = "SELECT name FROM people WHERE birth_month = ? AND birth_day = ? AND owner_id = ?"
+    params = (today_utc.month, today_utc.day, owner_id)
 
     return execute_with_retry(query, params).fetchall()
 
@@ -237,14 +241,34 @@ def get_next_contact_date(person_thread):
     return row[0] if row else None
 
 
-def daily_digest():
+def daily_digest(owner_id):
     today_utc = datetime.now(timezone.utc)
     today_month_day = today_utc.strftime("%Y-%m-%d")
     peeps = execute_with_retry(
-        "SELECT name FROM people WHERE next_contact_date = ? ORDER BY tier LIMIT 2;",
-        (today_month_day, )
+        "SELECT name FROM people WHERE next_contact_date = ? AND owner_id = ? ORDER BY tier LIMIT 2;",
+        (today_month_day, owner_id)
     ).fetchall()
     if peeps is None or len(peeps) == 0:
         return "Nobody 🫠"
     names = [row[0] for row in peeps]
     return ", ".join(names)
+
+async def get_all_guild_settings():
+    rows = execute_with_retry(
+        """SELECT guild_id, forum_channel_id, birthdays_channel_id, digest_channel_id,
+                  digest_hour, daily_capacity, owner_id
+           FROM guild_settings"""
+    ).fetchall()
+
+    return [
+        {
+            "guild_id": int(row[0]),
+            "forum_channel_id": int(row[1]),
+            "birthdays_channel_id": int(row[2]),
+            "digest_channel_id": int(row[3]),
+            "digest_hour": row[4],
+            "daily_capacity": row[5],
+            "owner_id": int(row[6]),
+        }
+        for row in rows
+    ]
